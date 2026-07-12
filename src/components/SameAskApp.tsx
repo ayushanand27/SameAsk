@@ -2,8 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CHAT_MODELS, type ModelId } from "@/lib/models";
-import { HOW_IT_WORKS, LIVE_PROMPTS, PRODUCT } from "@/lib/copy";
+import {
+  CTAS,
+  HOW_IT_WORKS,
+  LIVE,
+  LIVE_PROMPTS,
+  PRODUCT,
+  pick,
+} from "@/lib/copy";
 import { MarketBrowser, NeedFinder } from "@/components/NeedFinder";
+import {
+  ViewModeProvider,
+  ViewModeToggle,
+  useViewMode,
+} from "@/components/ViewModeContext";
 
 type Tab = "find" | "market" | "live";
 
@@ -70,8 +82,17 @@ function consistencyLabel(score: number): string {
 }
 
 export function SameAskApp() {
+  return (
+    <ViewModeProvider>
+      <SameAskAppInner />
+    </ViewModeProvider>
+  );
+}
+
+function SameAskAppInner() {
+  const { mode } = useViewMode();
   const [tab, setTab] = useState<Tab>("find");
-  const [prompt, setPrompt] = useState(LIVE_PROMPTS[0].text);
+  const [prompt, setPrompt] = useState<string>(LIVE_PROMPTS[0].text);
   const [runs, setRuns] = useState(3);
   const [selected, setSelected] = useState<ModelId[]>(
     CHAT_MODELS.slice(0, 5).map((m) => m.id),
@@ -81,6 +102,7 @@ export function SameAskApp() {
   const [error, setError] = useState<string | null>(null);
   const [keys, setKeys] = useState<StoredKeys>(emptyKeys);
   const [showKeys, setShowKeys] = useState(false);
+  const [showRunMeta, setShowRunMeta] = useState(false);
 
   useEffect(() => {
     try {
@@ -136,6 +158,7 @@ export function SameAskApp() {
       const json = (await res.json()) as CompareResponse;
       if (!res.ok) throw new Error(json.error || "Compare failed");
       setData(json);
+      setShowRunMeta(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -148,37 +171,40 @@ export function SameAskApp() {
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-40" />
       <div className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[920px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(61,255,200,0.16),transparent_65%)] blur-2xl" />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-5 pt-6 sm:px-8">
+      <header className="relative z-10 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 pt-6 sm:gap-4 sm:px-8">
         <div>
           <div className="font-display text-2xl tracking-tight text-[var(--ink)]">
             {PRODUCT.name}
           </div>
           <p className="font-mono text-[11px] text-[var(--muted)]">
-            {PRODUCT.tagline}
+            {pick(mode, PRODUCT.tagline)}
           </p>
         </div>
-        <nav className="flex flex-wrap gap-1 border border-[var(--line)] p-1">
-          {(
-            [
-              ["find", "Find"],
-              ["market", "Market"],
-              ["live", "Live test"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={`px-3 py-1.5 text-sm transition ${
-                tab === id
-                  ? "bg-[var(--signal)] text-[var(--bg)]"
-                  : "text-[var(--muted)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <ViewModeToggle />
+          <nav className="flex flex-wrap gap-1 border border-[var(--line)] p-1">
+            {(
+              [
+                ["find", "Find"],
+                ["market", "Market"],
+                ["live", "Live test"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`px-3 py-1.5 text-sm transition ${
+                  tab === id
+                    ? "bg-[var(--signal)] text-[var(--bg)]"
+                    : "text-[var(--muted)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </header>
 
       <main className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-16 pt-10 sm:px-8">
@@ -187,17 +213,19 @@ export function SameAskApp() {
             <section className="hero-enter mb-12 grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
               <div>
                 <p className="mb-4 font-mono text-xs uppercase tracking-[0.22em] text-[var(--signal)]">
-                  For everyone choosing AI in public
+                  {pick(mode, PRODUCT.heroEyebrow)}
                 </p>
                 <h1 className="font-display text-[clamp(2.6rem,6.5vw,5rem)] leading-[0.94] tracking-[-0.03em] text-[var(--ink)]">
                   SameAsk
                 </h1>
                 <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--muted)] sm:text-xl">
-                  {PRODUCT.oneLiner}
+                  {pick(mode, PRODUCT.oneLiner)}
                 </p>
-                <p className="mt-4 max-w-xl text-sm leading-relaxed text-[var(--muted)]">
-                  {PRODUCT.problem}
-                </p>
+                {mode === "technical" && (
+                  <p className="mt-4 max-w-xl text-sm leading-relaxed text-[var(--muted)]">
+                    {PRODUCT.problem.technical}
+                  </p>
+                )}
                 <div className="mt-8 flex flex-wrap gap-3">
                   <button
                     type="button"
@@ -208,14 +236,14 @@ export function SameAskApp() {
                     }
                     className="bg-[var(--signal)] px-5 py-3 font-medium text-[var(--bg)] transition hover:brightness-110"
                   >
-                    Find my AI
+                    {CTAS.findMyAi}
                   </button>
                   <button
                     type="button"
                     onClick={() => setTab("live")}
                     className="border border-[var(--line)] px-5 py-3 text-[var(--ink)] transition hover:border-[var(--signal)]"
                   >
-                    Live-test models
+                    {pick(mode, CTAS.liveTest)}
                   </button>
                 </div>
               </div>
@@ -232,10 +260,10 @@ export function SameAskApp() {
                       </span>
                       <div>
                         <div className="text-sm text-[var(--ink)]">
-                          {item.title}
+                          {pick(mode, item.title)}
                         </div>
                         <p className="mt-1 text-sm text-[var(--muted)]">
-                          {item.body}
+                          {pick(mode, item.body)}
                         </p>
                       </div>
                     </li>
@@ -256,13 +284,13 @@ export function SameAskApp() {
           <section className="space-y-8">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--signal)]">
-                Live reliability test
+                {pick(mode, LIVE.eyebrow)}
               </p>
               <h2 className="mt-2 font-display text-3xl tracking-tight text-[var(--ink)]">
-                Same prompt. Multiple runs. Who holds still?
+                {pick(mode, LIVE.title)}
               </h2>
               <p className="mt-3 max-w-2xl text-[var(--muted)]">
-                Paste an{" "}
+                {pick(mode, LIVE.blurbBeforeLink)}{" "}
                 <a
                   className="text-[var(--signal)] hover:underline"
                   href="https://openrouter.ai"
@@ -271,8 +299,7 @@ export function SameAskApp() {
                 >
                   OpenRouter
                 </a>{" "}
-                key to hit many models with one key. Keys stay in your browser
-                only. No key → demo mode still teaches the idea.
+                {pick(mode, LIVE.blurbAfterLink)}
               </p>
             </div>
 
@@ -282,8 +309,7 @@ export function SameAskApp() {
                 onClick={() => setShowKeys((s) => !s)}
                 className="font-mono text-xs text-[var(--signal)]"
               >
-                {showKeys ? "Hide" : "Show"} API keys (BYOK) ·{" "}
-                {hasAnyKey ? "saved locally" : "empty → demo"}
+                {LIVE.keysToggle[mode](showKeys, hasAnyKey)}
               </button>
               {showKeys && (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -314,8 +340,7 @@ export function SameAskApp() {
                     </label>
                   ))}
                   <p className="sm:col-span-2 font-mono text-[11px] text-[var(--muted)]">
-                    Keys never leave your device except to call the provider you
-                    chose. We don&apos;t store them on a server.
+                    {pick(mode, LIVE.keysHint)}
                   </p>
                 </div>
               )}
@@ -323,17 +348,17 @@ export function SameAskApp() {
 
             <div>
               <p className="mb-2 font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                Starter prompts
+                {pick(mode, LIVE.starterPrompts)}
               </p>
               <div className="flex flex-wrap gap-2">
                 {LIVE_PROMPTS.map((p) => (
                   <button
-                    key={p.label}
+                    key={p.label.technical}
                     type="button"
                     onClick={() => setPrompt(p.text)}
                     className="border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--muted)] transition hover:border-[var(--signal)] hover:text-[var(--ink)]"
                   >
-                    {p.label}
+                    {pick(mode, p.label)}
                   </button>
                 ))}
               </div>
@@ -342,7 +367,7 @@ export function SameAskApp() {
             <form onSubmit={onAsk} className="space-y-6">
               <label className="block">
                 <span className="mb-2 block font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Your real prompt
+                  {pick(mode, LIVE.promptLabel)}
                 </span>
                 <textarea
                   value={prompt}
@@ -396,7 +421,9 @@ export function SameAskApp() {
                 disabled={loading || selected.length === 0}
                 className="bg-[var(--ink)] px-6 py-3 font-medium text-[var(--bg)] transition hover:bg-white disabled:opacity-50"
               >
-                {loading ? "Running same ask…" : "Compare reliability"}
+                {loading
+                  ? pick(mode, LIVE.submitting)
+                  : pick(mode, LIVE.submit)}
               </button>
             </form>
 
@@ -411,8 +438,8 @@ export function SameAskApp() {
                 <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--line)] pb-4">
                   <div>
                     <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--signal)]">
-                      {data.mode === "demo" ? "Demo" : "Live"} · {data.runs} runs
-                      each
+                      {data.mode === "demo" ? "Demo" : "Live"} · {data.runs}{" "}
+                      runs each
                     </p>
                     <h3 className="mt-2 font-display text-2xl text-[var(--ink)]">
                       {data.winner
@@ -421,21 +448,32 @@ export function SameAskApp() {
                     </h3>
                     {data.winner && (
                       <p className="mt-1 text-sm text-[var(--muted)]">
-                        {consistencyLabel(data.winner.consistency)} on this
-                        prompt — use that signal for your real workflow.
+                        {consistencyLabel(data.winner.consistency)}{" "}
+                        {pick(mode, LIVE.winnerHint)}
                       </p>
                     )}
                   </div>
                   {data.winner && (
                     <p className="font-mono text-sm text-[var(--muted)]">
-                      Consistency{" "}
+                      {pick(mode, LIVE.consistencyMetric)}{" "}
                       <span className="text-[var(--signal)]">
                         {(data.winner.consistency * 100).toFixed(0)}%
                       </span>
                     </p>
                   )}
                 </div>
-                <p className="text-[var(--muted)]">{data.insight}</p>
+                {(mode === "technical" || showRunMeta) && (
+                  <p className="text-[var(--muted)]">{data.insight}</p>
+                )}
+                {mode === "simple" && !showRunMeta && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRunMeta(true)}
+                    className="font-mono text-xs text-[var(--signal)]"
+                  >
+                    {LIVE.allRuns.simple}
+                  </button>
+                )}
                 <div className="grid gap-4">
                   {data.ranking.map((row, index) => {
                     const meta = modelMeta.get(row.modelId as ModelId);
@@ -465,9 +503,14 @@ export function SameAskApp() {
                                 {meta?.name ?? row.modelId}
                               </h4>
                               <p className="font-mono text-xs text-[var(--muted)]">
-                                {consistencyLabel(row.consistency)} ·{" "}
-                                {row.completedRuns} ok / {row.failedRuns} fail ·{" "}
-                                {Math.round(row.avgLatencyMs)}ms
+                                {consistencyLabel(row.consistency)}
+                                {(mode === "technical" || showRunMeta) && (
+                                  <>
+                                    {" "}
+                                    · {row.completedRuns} ok / {row.failedRuns}{" "}
+                                    fail · {Math.round(row.avgLatencyMs)}ms
+                                  </>
+                                )}
                               </p>
                             </div>
                           </div>
@@ -476,7 +519,7 @@ export function SameAskApp() {
                               {(row.consistency * 100).toFixed(0)}%
                             </div>
                             <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">
-                              consistency
+                              {pick(mode, LIVE.consistencyMetric)}
                             </div>
                           </div>
                         </div>
@@ -496,7 +539,7 @@ export function SameAskApp() {
                         {detail && detail.answers.length > 1 && (
                           <details className="mt-3">
                             <summary className="cursor-pointer font-mono text-xs text-[var(--muted)]">
-                              All runs
+                              {pick(mode, LIVE.allRuns)}
                             </summary>
                             <ol className="mt-2 space-y-2">
                               {detail.answers.map((a, i) => (
@@ -513,11 +556,13 @@ export function SameAskApp() {
                             </ol>
                           </details>
                         )}
-                        {detail && detail.errors.length > 0 && (
-                          <p className="mt-2 font-mono text-xs text-red-300">
-                            Errors: {detail.errors.join(" · ")}
-                          </p>
-                        )}
+                        {detail &&
+                          detail.errors.length > 0 &&
+                          (mode === "technical" || showRunMeta) && (
+                            <p className="mt-2 font-mono text-xs text-red-300">
+                              Errors: {detail.errors.join(" · ")}
+                            </p>
+                          )}
                       </article>
                     );
                   })}
@@ -531,12 +576,10 @@ export function SameAskApp() {
       <footer className="relative z-10 mx-auto w-full max-w-6xl border-t border-[var(--line)] px-5 py-8 sm:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl text-sm text-[var(--muted)]">
-            SameAsk helps people pick the right AI for the job — then prove chat
-            models stay consistent. Curated market data; live scores from your
-            keys.
+            {pick(mode, PRODUCT.footer)}
           </p>
           <p className="font-mono text-[11px] text-[var(--muted)]">
-            Free · BYOK · no account required
+            {pick(mode, PRODUCT.footerMeta)}
           </p>
         </div>
       </footer>

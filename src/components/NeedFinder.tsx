@@ -3,11 +3,19 @@
 import { useMemo, useState } from "react";
 import { CATEGORIES, type Category } from "@/lib/catalog";
 import {
+  FIND,
+  MARKET,
+  pick,
+  softenNextStep,
+  softenReason,
+  summaryForNeedsMode,
+} from "@/lib/copy";
+import {
   filterMarket,
   recommend,
-  summaryForNeeds,
   type NeedAnswers,
 } from "@/lib/needs";
+import { useViewMode } from "@/components/ViewModeContext";
 
 const JOBS: { id: NeedAnswers["job"]; label: string; hint: string }[] = [
   { id: "chat", label: "Chat / write / research", hint: "Daily driver LLMs" },
@@ -20,6 +28,7 @@ const JOBS: { id: NeedAnswers["job"]; label: string; hint: string }[] = [
 ];
 
 export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
+  const { mode } = useViewMode();
   const [needs, setNeeds] = useState<NeedAnswers>({
     job: "chat",
     budget: "free",
@@ -27,6 +36,7 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
     context: "builder",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [openDetails, setOpenDetails] = useState<Record<string, boolean>>({});
 
   const picks = useMemo(
     () => (submitted ? recommend(needs, 8) : []),
@@ -37,14 +47,13 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
     <section className="space-y-8">
       <div>
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--signal)]">
-          Need finder
+          {pick(mode, FIND.eyebrow)}
         </p>
         <h2 className="mt-2 font-display text-3xl tracking-tight text-[var(--ink)] sm:text-4xl">
-          What should you use right now?
+          {pick(mode, FIND.title)}
         </h2>
         <p className="mt-3 max-w-2xl text-[var(--muted)]">
-          Four answers. A ranked shortlist. Clear next steps — so you pick the
-          right AI for this job, not last week&apos;s hype winner.
+          {pick(mode, FIND.blurb)}
         </p>
       </div>
 
@@ -70,12 +79,8 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
         <Field label="2 · Budget">
           <div className="flex flex-wrap gap-2">
             {(
-              [
-                ["free", "Free only"],
-                ["cheap", "Cheap / BYOK"],
-                ["ok-paid", "OK to pay"],
-              ] as const
-            ).map(([id, label]) => (
+              ["free", "cheap", "ok-paid"] as const
+            ).map((id) => (
               <Chip
                 key={id}
                 active={needs.budget === id}
@@ -84,7 +89,7 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
                   setSubmitted(false);
                 }}
               >
-                {label}
+                {pick(mode, FIND.budget[id])}
               </Chip>
             ))}
           </div>
@@ -94,13 +99,13 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ["reliability", "Reliability"],
-                ["quality", "Peak quality"],
-                ["speed", "Speed"],
-                ["cost", "Lowest cost"],
-                ["privacy", "Privacy"],
+                "reliability",
+                "quality",
+                "speed",
+                "cost",
+                "privacy",
               ] as const
-            ).map(([id, label]) => (
+            ).map((id) => (
               <Chip
                 key={id}
                 active={needs.priority === id}
@@ -109,7 +114,7 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
                   setSubmitted(false);
                 }}
               >
-                {label}
+                {pick(mode, FIND.priority[id])}
               </Chip>
             ))}
           </div>
@@ -151,7 +156,7 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
         </button>
         {submitted && (
           <p className="max-w-xl font-mono text-xs text-[var(--muted)]">
-            {summaryForNeeds(needs)}
+            {summaryForNeedsMode(needs, mode)}
           </p>
         )}
       </div>
@@ -160,8 +165,7 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
         <div className="space-y-4 results-enter">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <p className="font-mono text-xs text-[var(--muted)]">
-              Top {picks.length} fits · curated scores · prove chat picks in Live
-              test
+              {FIND.shortlistMeta[mode](picks.length)}
             </p>
             {onLiveTest && (
               <button
@@ -169,104 +173,136 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
                 onClick={onLiveTest}
                 className="font-mono text-xs text-[var(--signal)] hover:underline"
               >
-                Skip to Live test →
+                {pick(mode, FIND.liveCta)}
               </button>
             )}
           </div>
 
           <div className="grid gap-3">
-            {picks.map((p, i) => (
-              <article
-                key={p.tool.id}
-                className={`border bg-[var(--panel)] p-4 sm:p-5 ${
-                  i === 0
-                    ? "border-[var(--signal)]/50 shadow-[0_0_0_1px_rgba(61,255,200,0.12)]"
-                    : "border-[var(--line)]"
-                }`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs text-[var(--muted)]">
-                        #{i + 1}
-                      </span>
-                      {i === 0 && (
-                        <span className="border border-[var(--signal)]/40 bg-[var(--signal)]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--signal)]">
-                          Best start
+            {picks.map((p, i) => {
+              const detailsOpen = openDetails[p.tool.id] ?? false;
+              return (
+                <article
+                  key={p.tool.id}
+                  className={`border bg-[var(--panel)] p-4 sm:p-5 ${
+                    i === 0
+                      ? "border-[var(--signal)]/50 shadow-[0_0_0_1px_rgba(61,255,200,0.12)]"
+                      : "border-[var(--line)]"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs text-[var(--muted)]">
+                          #{i + 1}
                         </span>
-                      )}
-                      <h3 className="text-lg text-[var(--ink)]">{p.tool.name}</h3>
+                        {i === 0 && (
+                          <span className="border border-[var(--signal)]/40 bg-[var(--signal)]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--signal)]">
+                            Best start
+                          </span>
+                        )}
+                        <h3 className="text-lg text-[var(--ink)]">
+                          {p.tool.name}
+                        </h3>
+                      </div>
+                      <p className="mt-1 font-mono text-xs text-[var(--muted)]">
+                        {p.tool.vendor} · {p.tool.category} · {p.tool.pricing}
+                        {p.tool.freeTier ? " · free path" : ""}
+                        {(mode === "technical" || detailsOpen) && (
+                          <>
+                            {" "}
+                            · {pick(mode, FIND.reliabilityLabel)}{" "}
+                            {p.tool.reliability}/5
+                          </>
+                        )}
+                      </p>
                     </div>
-                    <p className="mt-1 font-mono text-xs text-[var(--muted)]">
-                      {p.tool.vendor} · {p.tool.category} · {p.tool.pricing}
-                      {p.tool.freeTier ? " · free path" : ""} · reliability{" "}
-                      {p.tool.reliability}/5
-                    </p>
+                    <div className="text-right">
+                      <div className="font-display text-2xl text-[var(--signal)]">
+                        {p.fit}
+                      </div>
+                      <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                        {pick(mode, FIND.fitLabel)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-display text-2xl text-[var(--signal)]">
-                      {p.fit}
-                    </div>
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">
-                      fit
-                    </div>
+
+                  <div className="mt-3 h-1.5 w-full bg-black/40">
+                    <div
+                      className="h-full bg-[var(--signal)] transition-all duration-500"
+                      style={{ width: `${p.fit}%` }}
+                    />
                   </div>
-                </div>
 
-                <div className="mt-3 h-1.5 w-full bg-black/40">
-                  <div
-                    className="h-full bg-[var(--signal)] transition-all duration-500"
-                    style={{ width: `${p.fit}%` }}
-                  />
-                </div>
+                  <p className="mt-3 text-sm text-[var(--ink)]/90">
+                    {p.tool.notes}
+                  </p>
+                  <p className="mt-2 text-sm text-[var(--muted)]">
+                    <span className="text-[var(--ink)]">When:</span>{" "}
+                    {p.whenToUse}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    <span className="text-[var(--ink)]">Next:</span>{" "}
+                    {softenNextStep(p.nextStep, mode)}
+                  </p>
 
-                <p className="mt-3 text-sm text-[var(--ink)]/90">{p.tool.notes}</p>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  <span className="text-[var(--ink)]">When:</span> {p.whenToUse}
-                </p>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  <span className="text-[var(--ink)]">Next:</span> {p.nextStep}
-                </p>
+                  {(mode === "technical" || detailsOpen) && (
+                    <ul className="mt-3 flex flex-wrap gap-2">
+                      {p.reasons.map((r) => (
+                        <li
+                          key={r}
+                          className="border border-[var(--line)] px-2 py-1 font-mono text-[11px] text-[var(--muted)]"
+                        >
+                          {softenReason(r, mode)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {p.reasons.map((r) => (
-                    <li
-                      key={r}
-                      className="border border-[var(--line)] px-2 py-1 font-mono text-[11px] text-[var(--muted)]"
-                    >
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-4 flex flex-wrap gap-4">
-                  <a
-                    href={p.tool.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-[var(--signal)] underline-offset-2 hover:underline"
-                  >
-                    Open {p.tool.name} →
-                  </a>
-                  {p.tool.liveTestable && onLiveTest && (
+                  {mode === "simple" && (
                     <button
                       type="button"
-                      onClick={onLiveTest}
-                      className="text-sm text-[var(--ink)] underline-offset-2 hover:underline"
+                      onClick={() =>
+                        setOpenDetails((prev) => ({
+                          ...prev,
+                          [p.tool.id]: !detailsOpen,
+                        }))
+                      }
+                      className="mt-3 font-mono text-xs text-[var(--signal)]"
                     >
-                      Prove reliability here
+                      {detailsOpen ? FIND.hideDetails : FIND.showDetails}
                     </button>
                   )}
-                </div>
-              </article>
-            ))}
+
+                  <div className="mt-4 flex flex-wrap gap-4">
+                    <a
+                      href={p.tool.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-[var(--signal)] underline-offset-2 hover:underline"
+                    >
+                      Open {p.tool.name} →
+                    </a>
+                    {p.tool.liveTestable && onLiveTest && (
+                      <button
+                        type="button"
+                        onClick={onLiveTest}
+                        className="text-sm text-[var(--ink)] underline-offset-2 hover:underline"
+                      >
+                        {pick(mode, FIND.proveCta)}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       )}
 
       <div className="border-t border-[var(--line)] pt-6">
         <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-          Market coverage
+          {pick(mode, FIND.marketCoverage)}
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {CATEGORIES.map((c) => (
@@ -287,10 +323,12 @@ export function NeedFinder({ onLiveTest }: { onLiveTest?: () => void }) {
 }
 
 export function MarketBrowser() {
+  const { mode } = useViewMode();
   const [category, setCategory] = useState<Category | "all">("all");
   const [freeOnly, setFreeOnly] = useState(false);
   const [liveOnly, setLiveOnly] = useState(false);
   const [q, setQ] = useState("");
+  const [openDetails, setOpenDetails] = useState<Record<string, boolean>>({});
 
   const tools = useMemo(
     () => filterMarket({ category, freeOnly, liveOnly, q }),
@@ -301,15 +339,13 @@ export function MarketBrowser() {
     <section className="space-y-6">
       <div>
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--signal)]">
-          Market map
+          {pick(mode, MARKET.eyebrow)}
         </p>
         <h2 className="mt-2 font-display text-3xl tracking-tight text-[var(--ink)]">
-          Browse the stack people actually open
+          {pick(mode, MARKET.title)}
         </h2>
         <p className="mt-3 max-w-2xl text-[var(--muted)]">
-          Chat, coding, image, video, data, notes, aggregators. Filter free paths
-          or live-testable models. Stars are curated — your prompt is the real
-          exam.
+          {pick(mode, MARKET.blurb)}
         </p>
       </div>
 
@@ -328,7 +364,7 @@ export function MarketBrowser() {
               onChange={(e) => setFreeOnly(e.target.checked)}
               className="accent-[var(--signal)]"
             />
-            Free path
+            {pick(mode, MARKET.freePath)}
           </label>
           <label className="flex items-center gap-2 font-mono text-xs text-[var(--muted)]">
             <input
@@ -337,7 +373,7 @@ export function MarketBrowser() {
               onChange={(e) => setLiveOnly(e.target.checked)}
               className="accent-[var(--signal)]"
             />
-            Live-testable
+            {pick(mode, MARKET.liveTestable)}
           </label>
         </div>
       </div>
@@ -367,48 +403,69 @@ export function MarketBrowser() {
         </p>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {tools.map((t) => (
-            <article
-              key={t.id}
-              className="group border border-[var(--line)] bg-[var(--panel)] p-4 transition hover:border-[var(--signal)]/35"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-[var(--ink)] group-hover:text-white">
-                    {t.name}
-                  </h3>
-                  <p className="font-mono text-[11px] text-[var(--muted)]">
-                    {t.vendor} · {t.category} · {t.pricing}
-                    {t.liveTestable ? " · live-testable" : ""}
-                  </p>
-                </div>
-                <div
-                  className="font-mono text-xs text-[var(--signal)]"
-                  title={`Curated reliability ${t.reliability}/5`}
-                >
-                  {"●".repeat(t.reliability)}
-                  <span className="text-[var(--muted)]">
-                    {"○".repeat(5 - t.reliability)}
-                  </span>
-                </div>
-              </div>
-              <p className="mt-2 text-sm text-[var(--muted)]">{t.notes}</p>
-              <p className="mt-2 text-xs text-[var(--ink)]/80">
-                Best for: {t.bestFor.join(", ")}
-              </p>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Not for: {t.notFor.join(", ")}
-              </p>
-              <a
-                href={t.url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-block text-sm text-[var(--signal)] hover:underline"
+          {tools.map((t) => {
+            const detailsOpen = openDetails[t.id] ?? false;
+            return (
+              <article
+                key={t.id}
+                className="group border border-[var(--line)] bg-[var(--panel)] p-4 transition hover:border-[var(--signal)]/35"
               >
-                Visit →
-              </a>
-            </article>
-          ))}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-[var(--ink)] group-hover:text-white">
+                      {t.name}
+                    </h3>
+                    <p className="font-mono text-[11px] text-[var(--muted)]">
+                      {t.vendor} · {t.category} · {t.pricing}
+                      {t.liveTestable ? pick(mode, MARKET.liveTag) : ""}
+                    </p>
+                  </div>
+                  <div
+                    className="font-mono text-xs text-[var(--signal)]"
+                    title={MARKET.reliabilityTitle[mode](t.reliability)}
+                  >
+                    {"●".repeat(t.reliability)}
+                    <span className="text-[var(--muted)]">
+                      {"○".repeat(5 - t.reliability)}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-[var(--muted)]">{t.notes}</p>
+                {(mode === "technical" || detailsOpen) && (
+                  <>
+                    <p className="mt-2 text-xs text-[var(--ink)]/80">
+                      Best for: {t.bestFor.join(", ")}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      Not for: {t.notFor.join(", ")}
+                    </p>
+                  </>
+                )}
+                {mode === "simple" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDetails((prev) => ({
+                        ...prev,
+                        [t.id]: !detailsOpen,
+                      }))
+                    }
+                    className="mt-2 font-mono text-xs text-[var(--signal)]"
+                  >
+                    {detailsOpen ? FIND.hideDetails : FIND.showDetails}
+                  </button>
+                )}
+                <a
+                  href={t.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-block text-sm text-[var(--signal)] hover:underline"
+                >
+                  Visit →
+                </a>
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
