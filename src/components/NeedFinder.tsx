@@ -441,28 +441,30 @@ export function MarketBrowser() {
                     </p>
                   </>
                 )}
-                {mode === "simple" && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenDetails((prev) => ({
-                        ...prev,
-                        [t.id]: !detailsOpen,
-                      }))
-                    }
-                    className="mt-2 font-mono text-xs text-[var(--signal)]"
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {mode === "simple" && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenDetails((prev) => ({
+                          ...prev,
+                          [t.id]: !detailsOpen,
+                        }))
+                      }
+                      className="font-mono text-xs text-[var(--signal)]"
+                    >
+                      {detailsOpen ? FIND.hideDetails : FIND.showDetails}
+                    </button>
+                  )}
+                  <a
+                    href={t.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-[var(--signal)] hover:underline"
                   >
-                    {detailsOpen ? FIND.hideDetails : FIND.showDetails}
-                  </button>
-                )}
-                <a
-                  href={t.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-block text-sm text-[var(--signal)] hover:underline"
-                >
-                  Visit →
-                </a>
+                    Visit →
+                  </a>
+                </div>
               </article>
             );
           })}
