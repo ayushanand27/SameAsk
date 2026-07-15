@@ -70,9 +70,9 @@ export const HOW_IT_WORKS = [
     title: { simple: "Get a shortlist", technical: "Get a shortlist" },
     body: {
       simple:
-        "Ranked tools for chat, coding, image, video, data, and notes — with when to use each.",
+        "Ranked tools for chat, coding, image, video, data, notes, PPT, and resume/ATS — with when to use each.",
       technical:
-        "Ranked tools across chat, coding, image, video, data, and notes — with when-to-use guidance.",
+        "Ranked tools across chat, coding, image, video, data, notes, presentations, and career — with when-to-use guidance.",
     },
   },
   {
@@ -235,6 +235,8 @@ const JOB_LABEL: Record<NeedAnswers["job"], string> = {
   video: "video generation",
   data: "data / Excel / BI",
   notes: "notes / teaching",
+  presentations: "presentations / PPT",
+  career: "resume / ATS / job hunt",
   aggregator: "multi-model hubs",
   unsure: "general AI work",
 };

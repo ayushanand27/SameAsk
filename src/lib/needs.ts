@@ -24,25 +24,98 @@ const JOB_LABEL: Record<NeedAnswers["job"], string> = {
   video: "video generation",
   data: "data / Excel / BI",
   notes: "notes / teaching",
+  presentations: "presentations / PPT",
+  career: "resume / ATS / job hunt",
   aggregator: "multi-model hubs",
   unsure: "general AI work",
 };
 
 const CONTEXT_HINTS: Record<NeedAnswers["context"], string[]> = {
-  student: ["study", "docs", "free", "research", "writing", "long-context", "citations"],
-  builder: ["coding", "agents", "api", "dev", "ide", "cli", "rag"],
-  creator: ["image", "video", "art", "avatar", "aesthetic"],
-  analyst: ["excel", "csv", "bi", "plots", "sheets", "analysis"],
-  team: ["enterprise", "office", "workspace", "self-host", "rag", "privacy"],
+  student: [
+    "study",
+    "docs",
+    "free",
+    "research",
+    "writing",
+    "long-context",
+    "citations",
+    "resume",
+    "ats",
+    "ppt",
+    "slides",
+  ],
+  builder: ["coding", "agents", "api", "dev", "ide", "cli", "rag", "ppt", "pitch"],
+  creator: ["image", "video", "art", "avatar", "aesthetic", "design", "slides"],
+  analyst: ["excel", "csv", "bi", "plots", "sheets", "analysis", "ppt", "deck"],
+  team: [
+    "enterprise",
+    "office",
+    "workspace",
+    "self-host",
+    "rag",
+    "privacy",
+    "corporate",
+    "brand",
+    "resume",
+  ],
 };
 
 /** Soft boosts: tools that are classic "right tool, right time" picks. */
 const CONTEXT_BOOSTS: Partial<Record<NeedAnswers["context"], string[]>> = {
-  student: ["notebooklm", "perplexity", "kimi", "qwen", "deepseek", "chatgpt", "claude"],
-  builder: ["cursor", "claude", "claude-code", "github-copilot", "windsurf", "deepseek", "phind"],
-  creator: ["midjourney", "runway", "kling", "chatgpt-images", "ideogram", "luma"],
-  analyst: ["julius", "chatgpt-excel", "copilot-excel", "gemini-sheets", "powerbi-copilot"],
-  team: ["copilot-chat", "claude", "librechat", "anythingllm", "openrouter", "notebooklm"],
+  student: [
+    "notebooklm",
+    "perplexity",
+    "kimi",
+    "qwen",
+    "deepseek",
+    "chatgpt",
+    "claude",
+    "teal",
+    "rezi",
+    "gamma",
+    "canva-magic",
+  ],
+  builder: [
+    "cursor",
+    "claude",
+    "claude-code",
+    "github-copilot",
+    "windsurf",
+    "deepseek",
+    "phind",
+    "gamma",
+    "plus-ai",
+  ],
+  creator: [
+    "midjourney",
+    "runway",
+    "kling",
+    "chatgpt-images",
+    "ideogram",
+    "luma",
+    "canva-magic",
+    "gamma",
+  ],
+  analyst: [
+    "julius",
+    "chatgpt-excel",
+    "copilot-excel",
+    "gemini-sheets",
+    "powerbi-copilot",
+    "beautiful-ai",
+    "plus-ai",
+  ],
+  team: [
+    "copilot-chat",
+    "claude",
+    "librechat",
+    "anythingllm",
+    "openrouter",
+    "notebooklm",
+    "beautiful-ai",
+    "copilot-powerpoint",
+    "jobscan",
+  ],
 };
 
 function whenToUse(tool: Tool, needs: NeedAnswers): string {
@@ -68,6 +141,12 @@ function nextStep(tool: Tool, needs: NeedAnswers): string {
   }
   if (tool.category === "image" || tool.category === "video") {
     return "Generate the same brief 2–3 times; keep the tool with the steadiest style match.";
+  }
+  if (tool.category === "presentations") {
+    return "Generate one real deck from a real outline; check export quality and whether slides need heavy cleanup.";
+  }
+  if (tool.category === "career") {
+    return "Paste one real job description, run the ATS/match score, and fix the flagged gaps before you apply.";
   }
   return `Open ${tool.name}, try one real task from your week, then decide.`;
 }

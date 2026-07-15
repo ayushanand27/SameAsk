@@ -24,6 +24,8 @@ const JOBS: { id: NeedAnswers["job"]; label: string; hint: string }[] = [
   { id: "video", label: "Video generation", hint: "Clips & avatars" },
   { id: "data", label: "Excel / data / BI", hint: "Sheets & charts" },
   { id: "notes", label: "Notes / teaching", hint: "Docs & study" },
+  { id: "presentations", label: "PPT / presentations", hint: "Decks & pitches" },
+  { id: "career", label: "Resume / ATS", hint: "Resumes & job hunt" },
   { id: "unsure", label: "Not sure yet", hint: "We'll start broad" },
 ];
 
