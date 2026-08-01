@@ -16,6 +16,7 @@ export type KeyBag = {
   xai?: string;
   deepseek?: string;
   openrouter?: string;
+  groq?: string;
 };
 
 export type CallOptions = {
@@ -162,11 +163,13 @@ export function resolveKeys(bag: KeyBag = {}): Required<Record<keyof KeyBag, str
     xai: envOr(bag, "XAI_API_KEY", "xai"),
     deepseek: envOr(bag, "DEEPSEEK_API_KEY", "deepseek"),
     openrouter: envOr(bag, "OPENROUTER_API_KEY", "openrouter"),
+    groq: envOr(bag, "GROQ_API_KEY", "groq"),
   };
 }
 
 export function canCallModel(model: ChatModel, keys: ReturnType<typeof resolveKeys>): boolean {
   if (keys.openrouter && model.openRouterId) return true;
+  if (model.id === "llama" && keys.groq) return true;
   switch (model.provider) {
     case "openai":
       return Boolean(keys.openai);
@@ -193,6 +196,15 @@ export async function callChatModel(
   const opts = { temperature: RELIABILITY_TEMPERATURE, ...options };
 
   // Prefer native provider keys; fall back to OpenRouter for broad coverage.
+  if (model.id === "llama" && keys.groq) {
+    return openAiCompatible(
+      "https://api.groq.com/openai/v1",
+      keys.groq,
+      "llama-3.3-70b-versatile",
+      prompt,
+      opts,
+    );
+  }
   if (model.provider === "openai" && keys.openai) {
     return openAiCompatible(
       "https://api.openai.com/v1",

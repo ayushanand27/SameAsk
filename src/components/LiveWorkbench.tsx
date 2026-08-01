@@ -66,6 +66,7 @@ type StoredKeys = {
   google: string;
   xai: string;
   deepseek: string;
+  groq: string;
 };
 
 const KEY_STORAGE = "sameask.keys.v1";
@@ -77,6 +78,7 @@ const emptyKeys = (): StoredKeys => ({
   google: "",
   xai: "",
   deepseek: "",
+  groq: "",
 });
 
 function similarityLabel(score: number, completedRuns = 1): string {
@@ -231,6 +233,7 @@ export function LiveWorkbench() {
         google: keys.google.trim() || undefined,
         xai: keys.xai.trim() || undefined,
         deepseek: keys.deepseek.trim() || undefined,
+        groq: keys.groq.trim() || undefined,
       };
       const res = await fetch("/api/compare", {
         method: "POST",
@@ -408,6 +411,7 @@ export function LiveWorkbench() {
             {(
               [
                 ["openrouter", "OpenRouter (recommended · free models)"],
+                ["groq", "Groq (fast Llama · free tier)"],
                 ["openai", "OpenAI"],
                 ["anthropic", "Anthropic"],
                 ["google", "Google AI Studio (free tier)"],

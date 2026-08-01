@@ -43,7 +43,7 @@ export function FeedbackChat() {
     {
       role: "assistant",
       content:
-        "Hi — ask about SameAsk, OpenRouter setup, or leave product feedback. Real-time replies.",
+        "Hi — ask about SameAsk, OpenRouter setup, or leave product feedback. Powered by Groq + Sarvam with auto-failover.",
     },
   ]);
   const bottomRef = useRef<HTMLDivElement | null>(null);

@@ -38,10 +38,9 @@ export default function PrivacyPage() {
         </p>
         <p>
           <strong className="text-[var(--ink)]">Feedback chat</strong> messages
-          are sent to SameAsk&apos;s server and then to the configured model
-          provider (Sarvam by default, or OpenRouter fallback) so we can answer
-          help questions and collect product feedback. Do not paste secrets into
-          the chat.
+          are sent to SameAsk&apos;s server, then routed to Groq (fast English
+          help) and/or Sarvam (Hindi/Indic), with automatic failover. Do not
+          paste secrets into the chat.
         </p>
         <p>
           <strong className="text-[var(--ink)]">Hosting</strong> runs on Vercel.
