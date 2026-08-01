@@ -19,6 +19,8 @@ Market-ready product to close the gap between “which model is smartest?” and
 - Side-by-side run compare · max 8 models · 4k prompt cap
 - Simple / Technical view modes
 - BYOK (OpenRouter recommended); demo mode without keys
+- Guided OpenRouter onboarding + free-friendly model preset
+- In-product streaming feedback chat (Sarvam / OpenRouter)
 - Security headers, sitemap/robots, health check `/api/health`
 
 ### What it is not

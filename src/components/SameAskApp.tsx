@@ -10,6 +10,7 @@ import {
 } from "@/lib/copy";
 import { MarketBrowser, NeedFinder } from "@/components/NeedFinder";
 import { LiveWorkbench } from "@/components/LiveWorkbench";
+import { FeedbackChat } from "@/components/FeedbackChat";
 import {
   ViewModeProvider,
   ViewModeToggle,
@@ -174,6 +175,8 @@ function SameAskAppInner() {
           </div>
         </div>
       </footer>
+
+      <FeedbackChat />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CHAT_MODELS, type ModelId } from "@/lib/models";
 import { LIVE, LIVE_PROMPTS, pick } from "@/lib/copy";
 import { useViewMode } from "@/components/ViewModeContext";
+import { OpenRouterOnboard } from "@/components/OpenRouterOnboard";
 import {
   downloadText,
   toCsv,
@@ -108,6 +109,7 @@ export function LiveWorkbench() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [compareIds, setCompareIds] = useState<[string, string] | null>(null);
   const [copied, setCopied] = useState(false);
+  const [dismissOnboard, setDismissOnboard] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -126,6 +128,14 @@ export function LiveWorkbench() {
     [],
   );
   const hasAnyKey = Object.values(keys).some((v) => v.trim());
+  const showOnboard = !hasAnyKey && !dismissOnboard;
+
+  function applyFreeFriendlyPreset() {
+    setSelected(["gemini", "deepseek", "qwen", "llama"]);
+    setRuns(3);
+    setTemperature(0.3);
+    setShowAdvanced(false);
+  }
 
   const sortedRanking = useMemo(() => {
     if (!data) return [];
@@ -330,7 +340,7 @@ export function LiveWorkbench() {
             {pick(mode, LIVE.blurbBeforeLink)}{" "}
             <a
               className="text-[var(--signal)] hover:underline"
-              href="https://openrouter.ai"
+              href="https://openrouter.ai/keys"
               target="_blank"
               rel="noreferrer"
             >
@@ -352,22 +362,55 @@ export function LiveWorkbench() {
         </div>
       </div>
 
-      <div className="border border-[var(--line)] bg-[var(--panel)] p-4">
+      {showOnboard && (
+        <OpenRouterOnboard
+          openrouterKey={keys.openrouter}
+          onOpenrouterChange={(value) => {
+            saveKeys({ ...keys, openrouter: value });
+            if (value.trim().length > 8) setShowKeys(false);
+          }}
+          onContinue={() => setDismissOnboard(true)}
+          onFreeFriendlyPreset={applyFreeFriendlyPreset}
+        />
+      )}
+
+      {!showOnboard && !hasAnyKey && (
         <button
           type="button"
-          onClick={() => setShowKeys((s) => !s)}
+          onClick={() => setDismissOnboard(false)}
           className="font-mono text-xs text-[var(--signal)]"
         >
-          {LIVE.keysToggle[mode](showKeys, hasAnyKey)}
+          Show OpenRouter setup again
         </button>
-        {showKeys && (
+      )}
+
+      <div className="border border-[var(--line)] bg-[var(--panel)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setShowKeys((s) => !s)}
+            className="font-mono text-xs text-[var(--signal)]"
+          >
+            {LIVE.keysToggle[mode](showKeys, hasAnyKey)}
+          </button>
+          {hasAnyKey && (
+            <button
+              type="button"
+              onClick={applyFreeFriendlyPreset}
+              className="font-mono text-[11px] text-[var(--muted)] hover:text-[var(--signal)]"
+            >
+              Free-friendly preset
+            </button>
+          )}
+        </div>
+        {(showKeys || (!hasAnyKey && !showOnboard)) && (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {(
               [
-                ["openrouter", "OpenRouter (recommended)"],
+                ["openrouter", "OpenRouter (recommended · free models)"],
                 ["openai", "OpenAI"],
                 ["anthropic", "Anthropic"],
-                ["google", "Google"],
+                ["google", "Google AI Studio (free tier)"],
                 ["xai", "xAI"],
                 ["deepseek", "DeepSeek"],
               ] as const
@@ -381,13 +424,21 @@ export function LiveWorkbench() {
                   value={keys[id]}
                   onChange={(e) => saveKeys({ ...keys, [id]: e.target.value })}
                   className="w-full border border-[var(--line)] bg-black/30 px-3 py-2 font-mono text-xs text-[var(--ink)] outline-none focus:border-[var(--signal)]"
-                  placeholder="sk-…"
+                  placeholder={id === "openrouter" ? "sk-or-v1-…" : "sk-…"}
                   autoComplete="off"
                 />
               </label>
             ))}
             <p className="sm:col-span-2 font-mono text-[11px] text-[var(--muted)]">
-              {pick(mode, LIVE.keysHint)}
+              {pick(mode, LIVE.keysHint)}{" "}
+              <a
+                href="https://openrouter.ai/keys"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[var(--signal)] hover:underline"
+              >
+                Get OpenRouter key
+              </a>
             </p>
           </div>
         )}
