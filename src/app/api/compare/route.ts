@@ -3,6 +3,7 @@ import { CHAT_MODELS, type ModelId } from "@/lib/models";
 import {
   callChatModel,
   canCallModel,
+  embedTexts,
   resolveKeys,
   type KeyBag,
 } from "@/lib/providers";
@@ -63,29 +64,51 @@ export async function POST(req: Request) {
   }
 
   const targets = mode === "live" ? liveAvailable : selected;
+  const keyBag = body.keys ?? {};
 
   const results: ModelRunResult[] = await Promise.all(
     targets.map(async (model) => {
+      // Parallelize runs within each model to cut wall-clock latency
+      const settled = await Promise.all(
+        Array.from({ length: runs }, async (_, i) => {
+          const started = Date.now();
+          try {
+            if (mode === "demo") {
+              await new Promise((r) => setTimeout(r, 80 + i * 20));
+              return {
+                ok: true as const,
+                text: demoAnswer(model.id, i),
+                ms: demoLatency(model.id, i),
+              };
+            }
+            const text = await callChatModel(model, prompt, keyBag, {
+              temperature: 0.3,
+            });
+            return { ok: true as const, text, ms: Date.now() - started };
+          } catch (err) {
+            return {
+              ok: false as const,
+              error: err instanceof Error ? err.message : "Unknown error",
+              ms: Date.now() - started,
+            };
+          }
+        }),
+      );
+
       const answers: string[] = [];
       const errors: string[] = [];
       const latencyMs: number[] = [];
+      for (const row of settled) {
+        latencyMs.push(row.ms);
+        if (row.ok) answers.push(row.text);
+        else errors.push(row.error);
+      }
 
-      for (let i = 0; i < runs; i++) {
-        const started = Date.now();
-        try {
-          if (mode === "demo") {
-            await new Promise((r) => setTimeout(r, 120 + i * 30));
-            answers.push(demoAnswer(model.id, i));
-            latencyMs.push(demoLatency(model.id, i));
-          } else {
-            const text = await callChatModel(model, prompt, body.keys ?? {});
-            answers.push(text);
-            latencyMs.push(Date.now() - started);
-          }
-        } catch (err) {
-          errors.push(err instanceof Error ? err.message : "Unknown error");
-          latencyMs.push(Date.now() - started);
-        }
+      let embeddings: number[][] | null = null;
+      let scoring: "semantic" | "lexical" = "lexical";
+      if (mode === "live" && answers.length >= 2) {
+        embeddings = await embedTexts(answers, keyBag);
+        if (embeddings) scoring = "semantic";
       }
 
       return {
@@ -94,23 +117,26 @@ export async function POST(req: Request) {
         errors,
         consistency:
           answers.length >= 2
-            ? consistencyScore(answers)
+            ? consistencyScore(answers, embeddings ?? undefined)
             : answers.length === 1
-              ? 0.5 // single success — not enough to claim steadiness
+              ? 0.5
               : 0,
         representative: pickRepresentative(answers),
         latencyMs,
+        scoring,
       };
     }),
   );
 
   const ranking = rankByReliability(results);
   const winner = ranking.find((r) => r.completedRuns > 0) ?? null;
+  const usedSemantic = results.some((r) => r.scoring === "semantic");
 
   return NextResponse.json({
     prompt,
     runs,
     mode,
+    scoring: usedSemantic ? "semantic" : "lexical",
     models: targets.map((m) => ({
       id: m.id,
       name: m.name,
@@ -122,7 +148,8 @@ export async function POST(req: Request) {
     results,
     ranking,
     winner,
-    insight:
-      "Match the tool to your need first. Then trust the model that stays consistent on YOUR prompt — not the one that won a leaderboard once.",
+    insight: usedSemantic
+      ? `Answer similarity across ${runs} runs (embedding + lexical blend) — not answer quality. A steady mediocre answer can outrank a better rephrased one. Raise runs for a stabler estimate.`
+      : `Answer similarity across ${runs} runs (paraphrase-aware lexical score) — not answer quality. With an OpenRouter/OpenAI key we also use embeddings when available. Raise runs for a stabler estimate.`,
   });
 }

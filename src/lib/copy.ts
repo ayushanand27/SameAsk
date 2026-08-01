@@ -162,10 +162,10 @@ export const MARKET = {
 export const LIVE = {
   eyebrow: {
     simple: "Live test",
-    technical: "Live reliability test",
+    technical: "Live answer-similarity test",
   },
   title: {
-    simple: "Same question. A few times. Who stays steady?",
+    simple: "Same question. A few times. Who stays closest?",
     technical: "Same prompt. Multiple runs. Who holds still?",
   },
   blurbBeforeLink: {
@@ -199,24 +199,26 @@ export const LIVE = {
     technical: "Your real prompt",
   },
   submit: {
-    simple: "Compare how steady they are",
-    technical: "Compare reliability",
+    simple: "Compare answer similarity",
+    technical: "Compare answer similarity",
   },
   submitting: {
     simple: "Asking the same thing…",
     technical: "Running same ask…",
   },
   consistencyMetric: {
-    simple: "same answer again",
-    technical: "consistency",
+    simple: "similarity",
+    technical: "answer similarity",
   },
   allRuns: {
     simple: "Show details",
     technical: "All runs",
   },
   winnerHint: {
-    simple: "on this question — use that for your real work.",
-    technical: "on this prompt — use that signal for your real workflow.",
+    simple:
+      "— closest answers across runs (not “best quality”). More runs = stabler estimate.",
+    technical:
+      "— highest response similarity across runs, not quality. A repeated mediocre answer can win. Raise runs for more confidence.",
   },
 } as const;
 

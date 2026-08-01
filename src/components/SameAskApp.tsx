@@ -41,6 +41,7 @@ type CompareResponse = {
   prompt: string;
   runs: number;
   mode: "demo" | "live";
+  scoring?: "semantic" | "lexical";
   models: ApiModel[];
   ranking: Ranking[];
   winner: Ranking | null;
@@ -76,10 +77,10 @@ const emptyKeys = (): StoredKeys => ({
 
 function consistencyLabel(score: number, completedRuns = 1): string {
   if (completedRuns <= 0) return "Failed";
-  if (score >= 0.85) return "Very steady";
-  if (score >= 0.65) return "Mostly steady";
-  if (score >= 0.4) return "Drifts";
-  return "Unstable";
+  if (score >= 0.85) return "Very similar";
+  if (score >= 0.65) return "Mostly similar";
+  if (score >= 0.4) return "Rephrases a lot";
+  return "Diverges";
 }
 
 export function SameAskApp() {
@@ -444,7 +445,7 @@ function SameAskAppInner() {
                     </p>
                     <h3 className="mt-2 font-display text-2xl text-[var(--ink)]">
                       {data.winner
-                        ? `${modelMeta.get(data.winner.modelId as ModelId)?.name ?? data.winner.modelId} held steadiest`
+                        ? `${modelMeta.get(data.winner.modelId as ModelId)?.name ?? data.winner.modelId} stayed closest`
                         : "No complete runs"}
                     </h3>
                     {data.winner && (
@@ -456,6 +457,11 @@ function SameAskAppInner() {
                         {pick(mode, LIVE.winnerHint)}
                       </p>
                     )}
+                    <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
+                      {data.scoring === "semantic"
+                        ? `Scoring: semantic embeddings + lexical · ${data.runs} runs`
+                        : `Scoring: paraphrase-aware lexical · ${data.runs} runs`}
+                    </p>
                   </div>
                   {data.winner && (
                     <p className="font-mono text-sm text-[var(--muted)]">

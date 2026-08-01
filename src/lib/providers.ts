@@ -6,6 +6,9 @@ const SYSTEM =
 /** Keep output small so free OpenRouter credits can afford the reservation. */
 const MAX_TOKENS = 600;
 
+/** Lower temp for Live reliability runs so we measure steadiness, not creativity. */
+const RELIABILITY_TEMPERATURE = 0.3;
+
 export type KeyBag = {
   openai?: string;
   anthropic?: string;
@@ -13,6 +16,10 @@ export type KeyBag = {
   xai?: string;
   deepseek?: string;
   openrouter?: string;
+};
+
+export type CallOptions = {
+  temperature?: number;
 };
 
 function friendlyProviderError(status: number, body: string): string {
@@ -29,7 +36,6 @@ function friendlyProviderError(status: number, body: string): string {
   if (status === 429) {
     return "Rate limited. Wait a moment and try fewer models or fewer runs.";
   }
-  // Keep a short snippet for debugging without dumping full JSON
   const snippet = body.replace(/\s+/g, " ").slice(0, 160);
   return `${status}: ${snippet}`;
 }
@@ -39,8 +45,10 @@ async function openAiCompatible(
   apiKey: string,
   model: string,
   prompt: string,
+  options: CallOptions = {},
 ): Promise<string> {
   const isOpenRouter = baseUrl.includes("openrouter.ai");
+  const temperature = options.temperature ?? RELIABILITY_TEMPERATURE;
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -55,7 +63,7 @@ async function openAiCompatible(
     },
     body: JSON.stringify({
       model,
-      temperature: 0.7,
+      temperature,
       max_tokens: MAX_TOKENS,
       messages: [
         { role: "system", content: SYSTEM },
@@ -75,7 +83,12 @@ async function openAiCompatible(
   return text;
 }
 
-async function callAnthropic(apiKey: string, model: string, prompt: string) {
+async function callAnthropic(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  options: CallOptions = {},
+) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -86,7 +99,7 @@ async function callAnthropic(apiKey: string, model: string, prompt: string) {
     body: JSON.stringify({
       model,
       max_tokens: MAX_TOKENS,
-      temperature: 0.7,
+      temperature: options.temperature ?? RELIABILITY_TEMPERATURE,
       system: SYSTEM,
       messages: [{ role: "user", content: prompt }],
     }),
@@ -103,7 +116,12 @@ async function callAnthropic(apiKey: string, model: string, prompt: string) {
   return text;
 }
 
-async function callGoogle(apiKey: string, model: string, prompt: string) {
+async function callGoogle(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  options: CallOptions = {},
+) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: "POST",
@@ -111,7 +129,10 @@ async function callGoogle(apiKey: string, model: string, prompt: string) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM }] },
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: MAX_TOKENS },
+      generationConfig: {
+        temperature: options.temperature ?? RELIABILITY_TEMPERATURE,
+        maxOutputTokens: MAX_TOKENS,
+      },
     }),
   });
   if (!res.ok) {
@@ -166,24 +187,44 @@ export async function callChatModel(
   model: ChatModel,
   prompt: string,
   keyBag: KeyBag = {},
+  options: CallOptions = {},
 ): Promise<string> {
   const keys = resolveKeys(keyBag);
+  const opts = { temperature: RELIABILITY_TEMPERATURE, ...options };
 
   // Prefer native provider keys; fall back to OpenRouter for broad coverage.
   if (model.provider === "openai" && keys.openai) {
-    return openAiCompatible("https://api.openai.com/v1", keys.openai, model.apiModel, prompt);
+    return openAiCompatible(
+      "https://api.openai.com/v1",
+      keys.openai,
+      model.apiModel,
+      prompt,
+      opts,
+    );
   }
   if (model.provider === "xai" && keys.xai) {
-    return openAiCompatible("https://api.x.ai/v1", keys.xai, model.apiModel, prompt);
+    return openAiCompatible(
+      "https://api.x.ai/v1",
+      keys.xai,
+      model.apiModel,
+      prompt,
+      opts,
+    );
   }
   if (model.provider === "deepseek" && keys.deepseek) {
-    return openAiCompatible("https://api.deepseek.com", keys.deepseek, model.apiModel, prompt);
+    return openAiCompatible(
+      "https://api.deepseek.com",
+      keys.deepseek,
+      model.apiModel,
+      prompt,
+      opts,
+    );
   }
   if (model.provider === "anthropic" && keys.anthropic) {
-    return callAnthropic(keys.anthropic, model.apiModel, prompt);
+    return callAnthropic(keys.anthropic, model.apiModel, prompt, opts);
   }
   if (model.provider === "google" && keys.google) {
-    return callGoogle(keys.google, model.apiModel, prompt);
+    return callGoogle(keys.google, model.apiModel, prompt, opts);
   }
   if (keys.openrouter && model.openRouterId) {
     return openAiCompatible(
@@ -191,8 +232,68 @@ export async function callChatModel(
       keys.openrouter,
       model.openRouterId,
       prompt,
+      opts,
     );
   }
 
   throw new Error(`No key for ${model.name}. Add a provider key or OPENROUTER_API_KEY.`);
+}
+
+/** Embed texts for semantic similarity (OpenRouter / OpenAI). Returns null on failure. */
+export async function embedTexts(
+  texts: string[],
+  keyBag: KeyBag = {},
+): Promise<number[][] | null> {
+  if (texts.length === 0) return [];
+  const keys = resolveKeys(keyBag);
+  const openrouter = keys.openrouter;
+  const openai = keys.openai;
+
+  async function embed(
+    baseUrl: string,
+    apiKey: string,
+    model: string,
+  ): Promise<number[][] | null> {
+    try {
+      const res = await fetch(`${baseUrl}/embeddings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          ...(baseUrl.includes("openrouter.ai")
+            ? {
+                "HTTP-Referer": "https://sameask.vercel.app",
+                "X-Title": "SameAsk",
+              }
+            : {}),
+        },
+        body: JSON.stringify({ model, input: texts }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        data?: { embedding?: number[]; index?: number }[];
+      };
+      if (!data.data?.length) return null;
+      const sorted = [...data.data].sort(
+        (a, b) => (a.index ?? 0) - (b.index ?? 0),
+      );
+      if (sorted.length !== texts.length) return null;
+      return sorted.map((d) => d.embedding ?? []);
+    } catch {
+      return null;
+    }
+  }
+
+  if (openrouter) {
+    const viaOr = await embed(
+      "https://openrouter.ai/api/v1",
+      openrouter,
+      "openai/text-embedding-3-small",
+    );
+    if (viaOr) return viaOr;
+  }
+  if (openai) {
+    return embed("https://api.openai.com/v1", openai, "text-embedding-3-small");
+  }
+  return null;
 }
