@@ -3,6 +3,9 @@ import type { ChatModel } from "./models";
 const SYSTEM =
   "Answer the user clearly and directly. Keep the answer concise (under 180 words) unless they ask for more. Do not mention that you are being evaluated.";
 
+/** Keep output small so free OpenRouter credits can afford the reservation. */
+const MAX_TOKENS = 600;
+
 export type KeyBag = {
   openai?: string;
   anthropic?: string;
@@ -12,20 +15,40 @@ export type KeyBag = {
   openrouter?: string;
 };
 
+function friendlyProviderError(status: number, body: string): string {
+  const lower = body.toLowerCase();
+  if (status === 402 || lower.includes("more credits") || lower.includes("can only afford")) {
+    return "OpenRouter credits too low for this model. Add credits, or pick cheaper models (Llama, DeepSeek, Qwen, Gemini Flash Lite).";
+  }
+  if (status === 404 && (lower.includes("deprecated") || lower.includes("no endpoints"))) {
+    return "Model ID unavailable on OpenRouter right now. SameAsk model list may need a refresh.";
+  }
+  if (status === 401 || status === 403) {
+    return "API key rejected. Check your OpenRouter / provider key.";
+  }
+  if (status === 429) {
+    return "Rate limited. Wait a moment and try fewer models or fewer runs.";
+  }
+  // Keep a short snippet for debugging without dumping full JSON
+  const snippet = body.replace(/\s+/g, " ").slice(0, 160);
+  return `${status}: ${snippet}`;
+}
+
 async function openAiCompatible(
   baseUrl: string,
   apiKey: string,
   model: string,
   prompt: string,
 ): Promise<string> {
+  const isOpenRouter = baseUrl.includes("openrouter.ai");
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
-      ...(baseUrl.includes("openrouter.ai")
+      ...(isOpenRouter
         ? {
-            "HTTP-Referer": "https://sameask.local",
+            "HTTP-Referer": "https://sameask.vercel.app",
             "X-Title": "SameAsk",
           }
         : {}),
@@ -33,6 +56,7 @@ async function openAiCompatible(
     body: JSON.stringify({
       model,
       temperature: 0.7,
+      max_tokens: MAX_TOKENS,
       messages: [
         { role: "system", content: SYSTEM },
         { role: "user", content: prompt },
@@ -41,7 +65,7 @@ async function openAiCompatible(
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${res.status}: ${body.slice(0, 240)}`);
+    throw new Error(friendlyProviderError(res.status, body));
   }
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
@@ -61,7 +85,7 @@ async function callAnthropic(apiKey: string, model: string, prompt: string) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 600,
+      max_tokens: MAX_TOKENS,
       temperature: 0.7,
       system: SYSTEM,
       messages: [{ role: "user", content: prompt }],
@@ -69,7 +93,7 @@ async function callAnthropic(apiKey: string, model: string, prompt: string) {
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${res.status}: ${body.slice(0, 240)}`);
+    throw new Error(friendlyProviderError(res.status, body));
   }
   const data = (await res.json()) as {
     content?: { type: string; text?: string }[];
@@ -87,12 +111,12 @@ async function callGoogle(apiKey: string, model: string, prompt: string) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM }] },
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
+      generationConfig: { temperature: 0.7, maxOutputTokens: MAX_TOKENS },
     }),
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${res.status}: ${body.slice(0, 240)}`);
+    throw new Error(friendlyProviderError(res.status, body));
   }
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];

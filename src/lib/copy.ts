@@ -174,9 +174,9 @@ export const LIVE = {
   },
   blurbAfterLink: {
     simple:
-      "key to try many models with one key. Keys stay in your browser. No key? Demo mode still shows the idea.",
+      "key to try many models with one key. Keys stay in your browser. No key? Demo mode still shows the idea. Free credits work better with fewer models/runs — SameAsk caps output size so requests stay affordable.",
     technical:
-      "key to hit many models with one key. Keys stay in your browser only. No key → demo mode still teaches the idea.",
+      "key to hit many models with one key. Keys stay in your browser only. No key → demo mode still teaches the idea. Free OpenRouter credits: SameAsk sets max_tokens=600 so reservations stay small; prefer Llama/DeepSeek/Qwen/Gemini Flash Lite if credits are low.",
   },
   keysToggle: {
     simple: (show: boolean, hasKey: boolean) =>

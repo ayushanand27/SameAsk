@@ -28,7 +28,11 @@ export type ChatModel = {
   color: string;
 };
 
-/** Live-testable chat models (BYOK / OpenRouter / demo). */
+/**
+ * Live-testable chat models (BYOK / OpenRouter / demo).
+ * OpenRouter IDs are kept on cheap, currently-listed endpoints so free-credit
+ * keys can complete reliability runs without 404/402 max_token reservations.
+ */
 export const CHAT_MODELS: ChatModel[] = [
   {
     id: "chatgpt",
@@ -48,7 +52,8 @@ export const CHAT_MODELS: ChatModel[] = [
     ui: "claude.ai",
     provider: "anthropic",
     apiModel: "claude-sonnet-4-20250514",
-    openRouterId: "anthropic/claude-sonnet-4",
+    // Haiku is far cheaper on OpenRouter free/low credits than Sonnet
+    openRouterId: "anthropic/claude-haiku-4.5",
     envKey: "ANTHROPIC_API_KEY",
     color: "#d97757",
   },
@@ -59,7 +64,7 @@ export const CHAT_MODELS: ChatModel[] = [
     ui: "gemini.google.com",
     provider: "google",
     apiModel: "gemini-2.0-flash",
-    openRouterId: "google/gemini-2.0-flash-001",
+    openRouterId: "google/gemini-3.5-flash-lite",
     envKey: "GOOGLE_API_KEY",
     color: "#4285f4",
   },
@@ -70,7 +75,7 @@ export const CHAT_MODELS: ChatModel[] = [
     ui: "x.com/i/grok",
     provider: "xai",
     apiModel: "grok-3-mini",
-    openRouterId: "x-ai/grok-3-mini",
+    openRouterId: "x-ai/grok-4.3",
     envKey: "XAI_API_KEY",
     color: "#e8e8e8",
   },

@@ -74,7 +74,8 @@ const emptyKeys = (): StoredKeys => ({
   deepseek: "",
 });
 
-function consistencyLabel(score: number): string {
+function consistencyLabel(score: number, completedRuns = 1): string {
+  if (completedRuns <= 0) return "Failed";
   if (score >= 0.85) return "Very steady";
   if (score >= 0.65) return "Mostly steady";
   if (score >= 0.4) return "Drifts";
@@ -448,7 +449,10 @@ function SameAskAppInner() {
                     </h3>
                     {data.winner && (
                       <p className="mt-1 text-sm text-[var(--muted)]">
-                        {consistencyLabel(data.winner.consistency)}{" "}
+                        {consistencyLabel(
+                          data.winner.consistency,
+                          data.winner.completedRuns,
+                        )}{" "}
                         {pick(mode, LIVE.winnerHint)}
                       </p>
                     )}
@@ -503,7 +507,10 @@ function SameAskAppInner() {
                                 {meta?.name ?? row.modelId}
                               </h4>
                               <p className="font-mono text-xs text-[var(--muted)]">
-                                {consistencyLabel(row.consistency)}
+                                {consistencyLabel(
+                                  row.consistency,
+                                  row.completedRuns,
+                                )}
                                 {(mode === "technical" || showRunMeta) && (
                                   <>
                                     {" "}

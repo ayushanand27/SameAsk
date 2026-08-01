@@ -92,7 +92,12 @@ export async function POST(req: Request) {
         modelId: model.id,
         answers,
         errors,
-        consistency: answers.length ? consistencyScore(answers) : 0,
+        consistency:
+          answers.length >= 2
+            ? consistencyScore(answers)
+            : answers.length === 1
+              ? 0.5 // single success — not enough to claim steadiness
+              : 0,
         representative: pickRepresentative(answers),
         latencyMs,
       };

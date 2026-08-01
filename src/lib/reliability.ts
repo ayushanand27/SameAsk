@@ -95,6 +95,9 @@ export function rankByReliability(results: ModelRunResult[]): CompareRanking[] {
       failedRuns: r.errors.length,
     }))
     .sort((a, b) => {
+      // Successful runs always beat total failures
+      if (a.completedRuns === 0 && b.completedRuns > 0) return 1;
+      if (b.completedRuns === 0 && a.completedRuns > 0) return -1;
       if (b.consistency !== a.consistency) return b.consistency - a.consistency;
       return a.avgLatencyMs - b.avgLatencyMs;
     });
