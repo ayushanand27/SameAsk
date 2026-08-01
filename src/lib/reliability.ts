@@ -159,6 +159,13 @@ export type ModelRunResult = {
   representative: string;
   latencyMs: number[];
   scoring: "semantic" | "lexical";
+  pairStats?: {
+    mean: number;
+    min: number;
+    max: number;
+    stdev: number;
+    pairs: number;
+  };
 };
 
 export type CompareRanking = {
@@ -169,6 +176,9 @@ export type CompareRanking = {
   completedRuns: number;
   failedRuns: number;
   scoring: "semantic" | "lexical";
+  pairMin?: number;
+  pairMax?: number;
+  pairStdev?: number;
 };
 
 export function rankByReliability(results: ModelRunResult[]): CompareRanking[] {
@@ -184,6 +194,9 @@ export function rankByReliability(results: ModelRunResult[]): CompareRanking[] {
       completedRuns: r.answers.length,
       failedRuns: r.errors.length,
       scoring: r.scoring,
+      pairMin: r.pairStats?.min,
+      pairMax: r.pairStats?.max,
+      pairStdev: r.pairStats?.stdev,
     }))
     .sort((a, b) => {
       if (a.completedRuns === 0 && b.completedRuns > 0) return 1;

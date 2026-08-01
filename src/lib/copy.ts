@@ -11,25 +11,25 @@ export const PRODUCT = {
   },
   oneLiner: {
     simple:
-      "Tell us what you need. Get a shortlist. Check that chat models give the same answer again.",
+      "Tell us what you need. Get a shortlist. Check answer similarity across runs — with exportable, transparent scoring.",
     technical:
-      "Tell us the job. Get a shortlist. Prove chat models stay consistent — before you trust them.",
+      "Need-matched shortlists plus live answer-similarity testing (embeddings + lexical). Exportable. Methodology public.",
   },
   problem: {
     simple:
-      "Too many AI tools. Too much hype. SameAsk helps you pick what fits — and see if it holds still.",
+      "Too many AI tools. Too much hype. SameAsk helps you pick what fits — and measure similarity without pretending it's IQ.",
     technical:
-      "Labs fight over who is smartest. People drown in tabs. The real question is which tool fits your need — and whether it holds still.",
+      "Labs fight over who is smartest. People drown in tabs. SameAsk closes the gap: fit by need, then measure response similarity on YOUR prompt — not vibes.",
   },
   heroEyebrow: {
     simple: "Pick AI without the overwhelm",
-    technical: "For everyone choosing AI in public",
+    technical: "Market-ready AI selection layer",
   },
   footer: {
     simple:
-      "SameAsk helps you pick the right AI for the job — then check that chat models stay steady. Browse tools, then try your own prompt.",
+      "SameAsk: pick the right AI for the job, then measure answer similarity. Keys stay in your browser.",
     technical:
-      "SameAsk helps people pick the right AI for the job — then prove chat models stay consistent. Curated market data; live scores from your keys.",
+      "Production SameAsk: curated market map, need finder, live similarity with pairwise stats, export, and local history.",
   },
   footerMeta: {
     simple: "Free · your own API key · no account",
